@@ -1,0 +1,125 @@
+#cloud-config
+
+---
+coreos:
+  etcd:
+    addr: $public_ipv4:4001
+    peer-addr: $public_ipv4:7001
+    discovery: https://discovery.etcd.io/126bbb34a246a33e4bfdff27510b5e15
+  etcd2:
+    advertise-client-urls: http://$public_ipv4:2379
+    initial-advertise-peer-urls: http://$private_ipv4:2380
+    listen-client-urls: http://0.0.0.0:2379,http://0.0.0.0:4001
+    listen-peer-urls: http://$private_ipv4:2380,http://$private_ipv4:7001
+    discovery: https://discovery.etcd.io/126bbb34a246a33e4bfdff27510b5e15
+  flannel:
+    interface: $public_ipv4
+  fleet:
+    public-ip: $public_ipv4
+    metadata: region=virtualbox
+  units:
+  - name: etcd2.service
+    command: start
+  - name: fleet.service
+    command: start
+  - name: puller.service
+    command: start
+    enable: true
+    content: |
+      [Unit]
+      Description=Pull repos
+      After=docker.service
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      TimeoutStartSec=60m
+      ExecStart=/usr/bin/docker pull busybox
+      ExecStart=/usr/bin/docker tag -f busybox hub.maestro.io:5000/crisidev/busybox
+      ExecStart=/usr/bin/docker rmi -f busybox
+      ExecStart=/usr/bin/docker pull registry:2
+      ExecStart=/usr/bin/docker tag -f registry:2 hub.maestro.io:5000/crisidev/registry
+      ExecStart=/usr/bin/docker rmi -f registry:2
+      ExecStart=/usr/bin/docker pull debian:jessie
+      ExecStart=/usr/bin/docker tag -f debian:jessie hub.maestro.io:5000/crisidev/debian
+      ExecStart=/usr/bin/docker rmi -f debian:jessie
+      ExecStart=/usr/bin/docker pull skynetservices/skydns
+      ExecStart=/usr/bin/docker tag -f skynetservices/skydns hub.maestro.io:5000/crisidev/skydns
+      ExecStart=/usr/bin/docker rmi -f skynetservices/skydns
+      ExecStart=/usr/bin/mkdir -p /share
+
+      [Install]
+      WantedBy=user-config.target
+  - name: builder.service
+    command: start
+    enable: true
+    content: |
+      [Unit]
+      Description=Build repos
+      After=puller.service
+      Requires=puller.service
+
+      [Service]
+      Type=oneshot
+      TimeoutStartSec=60m
+      ExecStart=/usr/bin/mkdir -p /run/maestro/containers
+      ExecStart=-/bin/bash -c "cd /run/maestro/containers/ && git clone https://github.com/crisidev/maestro-spartito spartito && \
+        git clone https://github.com/crisidev/maestro-violino violino && git clone https://github.com/crisidev/maestro-registry registry"
+      ExecStart=/bin/bash -c "cd /run/maestro/containers/spartito && /usr/bin/docker build -t hub.maestro.io:5000/crisidev/spartito .  && \
+        cd /run/maestro/containers/violino && /usr/bin/docker build -t hub.maestro.io:5000/crisidev/violino . && \
+        cd /run/maestro/containers/registry && /usr/bin/docker build -t hub.maestro.io:5000/crisidev/registry ."
+
+      [Install]
+      WantedBy=user-config.target
+  - name: registry.service
+    command: start
+    enable: true
+    content: |
+      [Unit]
+      Description=Maestro Registry
+      After=builder.service
+      Requires=builder.service
+
+      [Service]
+      TimeoutStartSec=0
+      ExecStartPre=-/usr/bin/docker kill registry
+      ExecStartPre=-/usr/bin/docker rm registry
+      ExecStart=/usr/bin/docker run --rm --name registry -v /share:/share -p 5000:5000 hub.maestro.io:5000/crisidev/registry
+      ExecStop=/usr/bin/docker stop registry
+
+      [Install]
+      WantedBy=user-config.target
+  - name: pusher.service
+    command: start
+    enable: true
+    content: |
+      [Unit]
+      Description=Push repos
+      After=builder.service
+      Requires=builder.service
+
+      [Service]
+      Type=oneshot
+      TimeoutStartSec=60m
+      ExecStart=/usr/bin/docker push hub.maestro.io:5000/crisidev/busybox
+      ExecStart=/usr/bin/docker push hub.maestro.io:5000/crisidev/registry
+      ExecStart=/usr/bin/docker push hub.maestro.io:5000/crisidev/debian
+      ExecStart=/usr/bin/docker push hub.maestro.io:5000/crisidev/skydns
+      ExecStart=/usr/bin/docker push hub.maestro.io:5000/crisidev/spartito
+      ExecStart=/usr/bin/docker push hub.maestro.io:5000/crisidev/violino
+
+      [Install]
+      WantedBy=user-config.target
+update:
+  reboot-strategy: false
+write_files:
+- path: /etc/hosts
+  content: |
+    172.17.8.100 hub.maestro.io
+    172.17.8.101 core-01
+    172.17.8.102 core-02
+    172.17.8.103 core-03
+- path: /etc/systemd/system/docker.service.d/50-insecure-registry.conf
+  content: |
+    [Service]
+    Environment='DOCKER_OPTS=--insecure-registry="172.17.8.0/24" --insecure-registry hub.maestro.io:5000'

@@ -42,7 +42,7 @@ $instance_name_prefix="registry"
 # For example, to deploy version 709.0.0, set $image_version="709.0.0".
 # The default value is "current", which points to the current version
 # of the selected channel
-$image_version = "current"
+$image_version = "745.1.0"
 
 # Official CoreOS channel from which updates should be downloaded
 $update_channel='alpha'
@@ -68,8 +68,8 @@ $expose_etcd_tcp=2378
 
 # Customize VMs
 $vm_gui = false
-$vm_memory = 256
-$vm_cpus = 1
+$vm_memory = 512
+$vm_cpus = 2
 
 # Share additional folders to the CoreOS VMs
 # For example,

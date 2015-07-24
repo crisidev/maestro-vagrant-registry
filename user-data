@@ -5,13 +5,11 @@ coreos:
   etcd:
     addr: $public_ipv4:4001
     peer-addr: $public_ipv4:7001
-    discovery: https://discovery.etcd.io/126bbb34a246a33e4bfdff27510b5e15
   etcd2:
     advertise-client-urls: http://$public_ipv4:2379
     initial-advertise-peer-urls: http://$private_ipv4:2380
     listen-client-urls: http://0.0.0.0:2379,http://0.0.0.0:4001
     listen-peer-urls: http://$private_ipv4:2380,http://$private_ipv4:7001
-    discovery: https://discovery.etcd.io/126bbb34a246a33e4bfdff27510b5e15
   flannel:
     interface: $public_ipv4
   fleet:
@@ -46,6 +44,7 @@ coreos:
       ExecStart=/usr/bin/docker pull skynetservices/skydns
       ExecStart=/usr/bin/docker tag -f skynetservices/skydns hub.maestro.io:5000/crisidev/skydns
       ExecStart=/usr/bin/docker rmi -f skynetservices/skydns
+      ExecStart=/usr/bin/systemctl stop update-engine.service
       ExecStart=/usr/bin/mkdir -p /share
 
       [Install]
@@ -62,12 +61,12 @@ coreos:
       [Service]
       Type=oneshot
       TimeoutStartSec=60m
-      ExecStart=/usr/bin/mkdir -p /run/maestro/containers
-      ExecStart=-/bin/bash -c "cd /run/maestro/containers/ && git clone https://github.com/crisidev/maestro-spartito spartito && \
+      ExecStart=/usr/bin/mkdir -p /opt/maestro/containers
+      ExecStart=-/bin/bash -c "cd /opt/maestro/containers/ && git clone https://github.com/crisidev/maestro-spartito spartito && \
         git clone https://github.com/crisidev/maestro-violino violino && git clone https://github.com/crisidev/maestro-registry registry"
-      ExecStart=/bin/bash -c "cd /run/maestro/containers/spartito && /usr/bin/docker build -t hub.maestro.io:5000/crisidev/spartito .  && \
-        cd /run/maestro/containers/violino && /usr/bin/docker build -t hub.maestro.io:5000/crisidev/violino . && \
-        cd /run/maestro/containers/registry && /usr/bin/docker build -t hub.maestro.io:5000/crisidev/registry ."
+      ExecStart=/bin/bash -c "cd /opt/maestro/containers/spartito && /usr/bin/docker build -t hub.maestro.io:5000/crisidev/spartito .  && \
+        cd /opt/maestro/containers/violino && /usr/bin/docker build -t hub.maestro.io:5000/crisidev/violino . && \
+        cd /opt/maestro/containers/registry && /usr/bin/docker build -t hub.maestro.io:5000/crisidev/registry ."
 
       [Install]
       WantedBy=user-config.target
@@ -107,6 +106,7 @@ coreos:
       ExecStart=/usr/bin/docker push hub.maestro.io:5000/crisidev/skydns
       ExecStart=/usr/bin/docker push hub.maestro.io:5000/crisidev/spartito
       ExecStart=/usr/bin/docker push hub.maestro.io:5000/crisidev/violino
+      ExecStartPost=/usr/bin/chown -R core:core /opt/maestro
 
       [Install]
       WantedBy=user-config.target

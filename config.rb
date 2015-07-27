@@ -1,3 +1,4 @@
+require 'rbconfig'
 # Size of the CoreOS cluster created by Vagrant
 $num_instances=1
 
@@ -76,7 +77,10 @@ $vm_cpus = 2
 # $shared_folders = {'/path/on/host' => '/path/on/guest', '/home/foo/app' => '/app'}
 # or, to map host folders to guest folders of the same name,
 # $shared_folders = Hash[*['/home/foo/app1', '/home/foo/app2'].map{|d| [d, d]}.flatten]
-$shared_folders = {'/Users/bigo/.share' => '/share'}
+@os = RbConfig::CONFIG['host_os']
+if @os.downcase.include?('darwin')
+  $shared_folders = { File.join(Dir.home, '.maestro-share') => '/share'}
+end
 
 # Enable port forwarding from guest(s) to host machine, syntax is: { 80 => 8080 }, auto correction is enabled by default.
 #$forwarded_ports = {}

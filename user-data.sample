@@ -41,9 +41,6 @@ coreos:
       ExecStart=/usr/bin/docker pull debian:jessie
       ExecStart=/usr/bin/docker tag -f debian:jessie hub.maestro.io:5000/crisidev/debian
       ExecStart=/usr/bin/docker rmi -f debian:jessie
-      ExecStart=/usr/bin/docker pull skynetservices/skydns
-      ExecStart=/usr/bin/docker tag -f skynetservices/skydns hub.maestro.io:5000/crisidev/skydns
-      ExecStart=/usr/bin/docker rmi -f skynetservices/skydns
       ExecStart=/usr/bin/systemctl stop update-engine.service
       ExecStart=/usr/bin/mkdir -p /share
 
@@ -103,7 +100,6 @@ coreos:
       ExecStart=/usr/bin/docker push hub.maestro.io:5000/crisidev/busybox
       ExecStart=/usr/bin/docker push hub.maestro.io:5000/crisidev/registry
       ExecStart=/usr/bin/docker push hub.maestro.io:5000/crisidev/debian
-      ExecStart=/usr/bin/docker push hub.maestro.io:5000/crisidev/skydns
       ExecStart=/usr/bin/docker push hub.maestro.io:5000/crisidev/spartito
       ExecStart=/usr/bin/docker push hub.maestro.io:5000/crisidev/violino
       ExecStartPost=/usr/bin/chown -R core:core /opt/maestro
